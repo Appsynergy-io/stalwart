@@ -77,17 +77,7 @@ impl Core {
             crate::enterprise::Enterprise::parse(config, &config_manager, &stores, &data).await;
 
         #[cfg(feature = "enterprise")]
-        let is_enterprise = enterprise.is_some();
-
-        #[cfg(feature = "enterprise")]
-        if !is_enterprise {
-            if data.is_enterprise_store() {
-                config
-                    .new_build_error("storage.data", "SQL read replicas is an Enterprise feature");
-                data = Store::None;
-            }
-            stores.disable_enterprise_only();
-        }
+        let is_enterprise = true;
         // SPDX-SnippetEnd
 
         let mut blob = config

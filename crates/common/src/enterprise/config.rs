@@ -17,13 +17,12 @@ use crate::{
     manager::config::ConfigManager,
 };
 use ahash::AHashMap;
-use directory::{Type, backend::internal::manage::ManageDirectory};
 use std::{sync::Arc, time::Duration};
 use store::{Store, Stores};
 use trc::{EventType, MetricType, TOTAL_EVENT_COUNT};
 use utils::{
     config::{
-        Config, ConfigKey,
+        Config,
         cron::SimpleCron,
         utils::{AsKey, ParseValue},
     },
@@ -33,105 +32,15 @@ use utils::{
 impl Enterprise {
     pub async fn parse(
         config: &mut Config,
-        config_manager: &ConfigManager,
+        _config_manager: &ConfigManager,
         stores: &Stores,
-        data: &Store,
+        _data: &Store,
     ) -> Option<Self> {
         let server_hostname = config
             .value("server.hostname")
             .or_else(|| config.value("lookup.default.hostname"))?;
-        let mut update_license = None;
 
-        let license_result = match (
-            config.value("enterprise.license-key"),
-            config.value("enterprise.api-key"),
-        ) {
-            (Some(license_key), maybe_api_key) => {
-                match (LicenseKey::new(license_key, server_hostname), maybe_api_key) {
-                    (Ok(license), Some(api_key)) if license.is_near_expiration() => Ok(license
-                        .try_renew(api_key)
-                        .await
-                        .map(|result| {
-                            update_license = Some(result.encoded_key);
-                            result.key
-                        })
-                        .unwrap_or(license)),
-                    (Ok(license), None) => Ok(license),
-                    (Err(_), Some(api_key)) => LicenseKey::invalid(server_hostname)
-                        .try_renew(api_key)
-                        .await
-                        .map(|result| {
-                            update_license = Some(result.encoded_key);
-                            result.key
-                        }),
-                    (maybe_license, _) => maybe_license,
-                }
-            }
-            (None, Some(api_key)) => LicenseKey::invalid(server_hostname)
-                .try_renew(api_key)
-                .await
-                .map(|result| {
-                    update_license = Some(result.encoded_key);
-                    result.key
-                }),
-            (None, None) => {
-                return None;
-            }
-        };
-
-        // Report error
-        let license = match license_result {
-            Ok(license) => license,
-            Err(err) => {
-                config.new_build_warning("enterprise.license-key", err.to_string());
-                return None;
-            }
-        };
-
-        // Update the license if a new one was obtained
-        if let Some(license) = update_license {
-            config
-                .keys
-                .insert("enterprise.license-key".to_string(), license.clone());
-            if let Err(err) = config_manager
-                .set(
-                    [ConfigKey {
-                        key: "enterprise.license-key".to_string(),
-                        value: license.to_string(),
-                    }],
-                    true,
-                )
-                .await
-            {
-                trc::error!(
-                    err.caused_by(trc::location!())
-                        .details("Failed to update license key")
-                );
-            }
-        }
-
-        match data
-            .count_principals(None, Type::Individual.into(), None)
-            .await
-        {
-            Ok(total) if total > license.accounts as u64 => {
-                config.new_build_warning(
-                    "enterprise.license-key",
-                    format!(
-                        "License key is valid but only allows {} accounts, found {}.",
-                        license.accounts, total
-                    ),
-                );
-                return None;
-            }
-            Err(e) => {
-                if !matches!(data, Store::None) {
-                    config.new_build_error("enterprise.license-key", e.to_string());
-                }
-                return None;
-            }
-            _ => (),
-        }
+        let license = LicenseKey::unlimited(server_hostname);
 
         let trace_store = if config
             .property_or_default("tracing.history.enable", "false")
