@@ -70,6 +70,8 @@ pub enum PrincipalData {
     // Secrets
     AppPassword(String),
     OtpAuth(String),
+    WebauthnCredential(String),
+    WebauthnRequired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

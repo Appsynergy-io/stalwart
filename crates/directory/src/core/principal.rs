@@ -540,6 +540,7 @@ impl PrincipalData {
             PrincipalData::Password(v)
             | PrincipalData::AppPassword(v)
             | PrincipalData::OtpAuth(v)
+            | PrincipalData::WebauthnCredential(v)
             | PrincipalData::Description(v)
             | PrincipalData::PrimaryEmail(v)
             | PrincipalData::EmailAlias(v)
@@ -554,6 +555,7 @@ impl PrincipalData {
             | PrincipalData::MemberOf(_)
             | PrincipalData::Role(_)
             | PrincipalData::List(_) => U32_LEN,
+            PrincipalData::WebauthnRequired => 0,
         }
     }
 }

@@ -119,6 +119,7 @@ pub const KV_LOCK_TASK: u8 = 23;
 pub const KV_LOCK_HOUSEKEEPER: u8 = 24;
 pub const KV_LOCK_DAV: u8 = 25;
 pub const KV_SIEVE_ID: u8 = 26;
+pub const KV_WEBAUTHN: u8 = 27;
 
 #[derive(Clone)]
 pub struct Server {
@@ -342,6 +343,7 @@ pub struct Core {
     pub network: Network,
     pub acme: AcmeProviders,
     pub oauth: OAuthConfig,
+    pub webauthn: Option<auth::webauthn::WebauthnState>,
     pub smtp: SmtpConfig,
     pub jmap: JmapConfig,
     pub groupware: GroupwareConfig,

@@ -398,6 +398,12 @@ impl ManageDirectory for Store {
                 create_principal
                     .data
                     .push(PrincipalData::AppPassword(secret));
+            } else if secret.is_webauthn_credential() {
+                create_principal
+                    .data
+                    .push(PrincipalData::WebauthnCredential(secret));
+            } else if secret.is_webauthn_required() {
+                create_principal.data.push(PrincipalData::WebauthnRequired);
             } else if !has_secret {
                 has_secret = true;
                 create_principal.data.push(PrincipalData::Password(secret));
@@ -1175,6 +1181,8 @@ impl ManageDirectory for Store {
                             PrincipalData::Password(_)
                                 | PrincipalData::AppPassword(_)
                                 | PrincipalData::OtpAuth(_)
+                                | PrincipalData::WebauthnCredential(_)
+                                | PrincipalData::WebauthnRequired
                         )
                     });
                     let mut has_secret = false;
@@ -1183,6 +1191,12 @@ impl ManageDirectory for Store {
                             principal.data.push(PrincipalData::OtpAuth(secret));
                         } else if secret.is_app_secret() {
                             principal.data.push(PrincipalData::AppPassword(secret));
+                        } else if secret.is_webauthn_credential() {
+                            principal
+                                .data
+                                .push(PrincipalData::WebauthnCredential(secret));
+                        } else if secret.is_webauthn_required() {
+                            principal.data.push(PrincipalData::WebauthnRequired);
                         } else if !has_secret {
                             has_secret = true;
                             principal.data.push(PrincipalData::Password(secret));
@@ -1197,7 +1211,8 @@ impl ManageDirectory for Store {
                     if !principal.data.iter().any(|v| match v {
                         PrincipalData::Password(v)
                         | PrincipalData::AppPassword(v)
-                        | PrincipalData::OtpAuth(v) => *v == secret,
+                        | PrincipalData::OtpAuth(v)
+                        | PrincipalData::WebauthnCredential(v) => *v == secret,
                         _ => false,
                     }) {
                         if secret.is_app_secret() {
@@ -1207,6 +1222,18 @@ impl ManageDirectory for Store {
                                 .data
                                 .retain(|v| !matches!(v, PrincipalData::OtpAuth(_)));
                             principal.data.push(PrincipalData::OtpAuth(secret));
+                        } else if secret.is_webauthn_credential() {
+                            principal
+                                .data
+                                .push(PrincipalData::WebauthnCredential(secret));
+                        } else if secret.is_webauthn_required() {
+                            if !principal
+                                .data
+                                .iter()
+                                .any(|v| matches!(v, PrincipalData::WebauthnRequired))
+                            {
+                                principal.data.push(PrincipalData::WebauthnRequired);
+                            }
                         } else {
                             principal
                                 .data
@@ -1233,6 +1260,17 @@ impl ManageDirectory for Store {
                             }
                             _ => true,
                         });
+                    } else if secret.is_webauthn_credential() {
+                        principal.data.retain(|v| match v {
+                            PrincipalData::WebauthnCredential(v) => {
+                                *v != secret && !v.starts_with(secret.as_str())
+                            }
+                            _ => true,
+                        });
+                    } else if secret.is_webauthn_required() {
+                        principal
+                            .data
+                            .retain(|v| !matches!(v, PrincipalData::WebauthnRequired));
                     } else if !secret.is_empty() {
                         principal.data.retain(|v| match v {
                             PrincipalData::Password(v) => *v != secret,
