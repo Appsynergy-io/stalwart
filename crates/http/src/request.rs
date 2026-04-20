@@ -12,6 +12,7 @@ use crate::{
             FormData, auth::OAuthApiHandler, openid::OpenIdHandler,
             registration::ClientRegistrationHandler, token::TokenHandler,
         },
+        webauthn::WebauthnHandler,
     },
     autoconfig::Autoconfig,
     form::FormHandler,
@@ -337,6 +338,16 @@ impl ParseHttp for Server {
                 _ => (),
             },
             "auth" => match (path.next().unwrap_or_default(), req.method()) {
+                ("webauthn", &Method::POST) => {
+                    let sub = path.next().unwrap_or_default().to_string();
+                    self.is_http_anonymous_request_allowed(&session.remote_ip)
+                        .await?;
+
+                    let body = fetch_body(&mut req, 8192, session.session_id).await;
+                    return self
+                        .handle_webauthn_auth(&[sub.as_str()], body, session)
+                        .await;
+                }
                 ("device", &Method::POST) => {
                     self.is_http_anonymous_request_allowed(&session.remote_ip)
                         .await?;

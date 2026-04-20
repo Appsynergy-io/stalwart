@@ -23,6 +23,7 @@ pub mod oauth;
 pub mod rate_limit;
 pub mod roles;
 pub mod sasl;
+pub mod webauthn;
 
 #[derive(Debug, Default)]
 pub struct AccessToken {

@@ -188,6 +188,7 @@ impl Core {
             jmap: JmapConfig::parse(config, &groupware),
             imap: ImapConfig::parse(config),
             oauth: OAuthConfig::parse(config),
+            webauthn: crate::auth::webauthn::config::parse_webauthn(config),
             acme: AcmeProviders::parse(config),
             metrics: Metrics::parse(config),
             spam: SpamFilterConfig::parse(config).await,

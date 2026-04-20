@@ -27,7 +27,7 @@ pub mod enterprise;
 use enterprise::telemetry::TelemetryApi;
 // SPDX-SnippetEnd
 
-use crate::auth::oauth::auth::OAuthApiHandler;
+use crate::auth::{oauth::auth::OAuthApiHandler, webauthn::WebauthnHandler};
 use common::{Server, auth::AccessToken};
 use crypto::CryptoHandler;
 use directory::{Permission, backend::internal::manage};
@@ -161,6 +161,11 @@ impl ManagementApi for Server {
                     access_token.assert_has_permission(Permission::ManagePasswords)?;
 
                     self.handle_account_auth_post(req, access_token, body).await
+                }
+                ("webauthn", _) => {
+                    let remainder: Vec<&str> = path.iter().skip(2).copied().collect();
+                    self.handle_webauthn_account(req.method(), &remainder, body, access_token)
+                        .await
                 }
                 _ => Err(trc::ResourceEvent::NotFound.into_err()),
             },
