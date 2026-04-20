@@ -17,7 +17,7 @@ pub mod undelete;
 use ahash::{AHashMap, AHashSet};
 use directory::{
     QueryParams, Type,
-    backend::internal::{lookup::DirectoryStore, manage::ManageDirectory},
+    backend::internal::lookup::DirectoryStore,
 };
 use license::LicenseKey;
 use llm::AiApiConfig;
@@ -111,9 +111,7 @@ pub enum AlertContentToken {
 
 impl Core {
     pub fn is_enterprise_edition(&self) -> bool {
-        self.enterprise
-            .as_ref()
-            .is_some_and(|e| !e.license.is_expired())
+        true
     }
 }
 
@@ -154,26 +152,6 @@ impl Server {
     }
 
     pub async fn can_create_account(&self) -> trc::Result<bool> {
-        if let Some(enterprise) = &self.core.enterprise {
-            let total_accounts = self
-                .store()
-                .count_principals(None, Type::Individual.into(), None)
-                .await
-                .caused_by(trc::location!())?;
-
-            if total_accounts + 1 > enterprise.license.accounts as u64 {
-                trc::event!(
-                    Server(trc::ServerEvent::Licensing),
-                    Details = "Account creation not possible: license key account limit reached",
-                    Domain = enterprise.license.domain.clone(),
-                    Total = total_accounts,
-                    Limit = enterprise.license.accounts,
-                );
-
-                return Ok(false);
-            }
-        }
-
         Ok(true)
     }
 

@@ -33,6 +33,7 @@ use trc::ServerEvent;
 //const LICENSING_API: &str = "https://localhost:444/api/license/";
 const LICENSING_API: &str = "https://license.stalw.art/api/license/";
 const RENEW_THRESHOLD: u64 = 60 * 60 * 24 * 4; // 4 days
+const MAX_SCHEDULE_SECS: u64 = 60 * 60 * 24 * 30; // cap so Instant::now() + duration cannot overflow
 
 pub struct LicenseValidator {
     public_key: UnparsedPublicKey<Vec<u8>>,
@@ -180,6 +181,15 @@ impl LicenseKey {
         }
     }
 
+    pub fn unlimited(domain: impl AsRef<str>) -> Self {
+        LicenseKey {
+            valid_from: 0,
+            valid_to: u64::MAX,
+            domain: Self::base_domain(domain).unwrap_or_default(),
+            accounts: u32::MAX,
+        }
+    }
+
     pub async fn try_renew(&self, api_key: &str) -> Result<RenewedLicense, LicenseError> {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -233,11 +243,15 @@ impl LicenseKey {
     }
 
     pub fn expires_in(&self) -> Duration {
-        Duration::from_secs(self.valid_to.saturating_sub(now()))
+        Duration::from_secs(self.valid_to.saturating_sub(now()).min(MAX_SCHEDULE_SECS))
     }
 
     pub fn renew_in(&self) -> Duration {
-        Duration::from_secs(self.valid_to.saturating_sub(now() + RENEW_THRESHOLD))
+        Duration::from_secs(
+            self.valid_to
+                .saturating_sub(now() + RENEW_THRESHOLD)
+                .min(MAX_SCHEDULE_SECS),
+        )
     }
 
     pub fn is_expired(&self) -> bool {
